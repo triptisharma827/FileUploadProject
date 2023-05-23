@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Word to PDF Converter</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Word to PDF Converter</h1>
+        <hr>
+
+        <div id="message" class="mb-3"></div>
+
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Select Word File (.docx)</label>
+                <input type="file" class="form-control-file" id="file" name="file" accept=".docx" required>
+                <small class="form-text text-muted">File size should be less than 5 MB.</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Convert to PDF</button>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script>
+        $(document).ready(function() {
+            $('#uploadForm').submit(function(event) {
+                event.preventDefault();
+                var form = $('#uploadForm')[0];
+                var formData = new FormData(form);
+
+                $.ajax({
+                    type: 'POST',
+                    url: 'https://4bjm0nbs06.execute-api.eu-north-1.amazonaws.com/dev',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        $('#message').html('<div class="alert alert-success" role="alert">File converted and uploaded successfully.</div>');
+                    },
+                    error: function(error) {
+                        var message = error.responseJSON ? error.responseJSON.error : 'An error occurred.';
+                        $('#message').html('<div class="alert alert-danger" role="alert">' + message + '</div>');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
