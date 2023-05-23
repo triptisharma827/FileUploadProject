@@ -11,7 +11,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
-BUCKET_NAME = 'your-s3-bucket-name'  # Replace with your S3 bucket name
+BUCKET_NAME = 'pdf-files-storage'  # Replace with your S3 bucket name
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

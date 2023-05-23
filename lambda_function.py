@@ -5,7 +5,10 @@ from docx2pdf import convert
 BUCKET_NAME = os.environ['BUCKET_NAME']
 
 def lambda_handler(event, context):
-    file_obj = event['body-json'].get('file')
+    request_body = json.loads(event['body'])
+
+    file_obj = request_body.get('file')
+    # file_obj = event['body-json'].get('file')
 
     if not file_obj:
         return {'statusCode': 400, 'body': 'No file in the request'}
