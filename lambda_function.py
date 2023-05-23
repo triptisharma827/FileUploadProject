@@ -5,10 +5,11 @@ from docx2pdf import convert
 BUCKET_NAME = os.environ['BUCKET_NAME']
 
 def lambda_handler(event, context):
-    request_body = json.loads(event['body'])
+    if 'body' not in event:
+        return {'statusCode': 400, 'body': 'No request body'}
 
-    file_obj = request_body.get('file')
-    # file_obj = event['body-json'].get('file')
+    request_body = event['body']
+    file_obj = get_file_from_formdata(request_body)
 
     if not file_obj:
         return {'statusCode': 400, 'body': 'No file in the request'}
@@ -30,6 +31,15 @@ def lambda_handler(event, context):
         return {'statusCode': 200, 'body': 'File converted and uploaded successfully'}
     else:
         return {'statusCode': 500, 'body': 'Failed to convert file to PDF'}
+
+def get_file_from_formdata(request_body):
+    for part in request_body:
+        if part.filename:
+            return {
+                'filename': part.filename,
+                'content': part.read()
+            }
+    return None
 
 def convert_to_pdf(file_path):
     try:
