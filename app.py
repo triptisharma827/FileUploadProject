@@ -52,4 +52,4 @@ def convert_word_to_pdf():
         return jsonify({'error': 'Invalid file format or size exceeded'}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True, port=1010)
+    app.run(debug=True, port=5000)

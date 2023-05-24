@@ -1,55 +1,88 @@
-import os
 import boto3
+import os
 from docx2pdf import convert
 
-BUCKET_NAME = os.environ['BUCKET_NAME']
-
 def lambda_handler(event, context):
-    if 'body' not in event:
-        return {'statusCode': 400, 'body': 'No request body'}
-
-    request_body = event['body']
-    file_obj = get_file_from_formdata(request_body)
-
-    if not file_obj:
-        return {'statusCode': 400, 'body': 'No file in the request'}
-
-    file_name = file_obj['filename']
-    file_content = file_obj['content']
-    file_size = len(file_content)
-
-    if file_size > 5 * 1024 * 1024:
-        return {'statusCode': 400, 'body': 'File size exceeded (5 MB limit)'}
-
-    file_path = f'/tmp/{file_name}'
-    with open(file_path, 'wb') as f:
-        f.write(file_content)
-
-    pdf_path = convert_to_pdf(file_path)
-    if pdf_path:
-        upload_to_s3(pdf_path, file_name)
-        return {'statusCode': 200, 'body': 'File converted and uploaded successfully'}
-    else:
-        return {'statusCode': 500, 'body': 'Failed to convert file to PDF'}
-
-def get_file_from_formdata(request_body):
-    for part in request_body:
-        if part.filename:
-            return {
-                'filename': part.filename,
-                'content': part.read()
+    # Check if the headers attribute is present in the event
+    if 'headers' not in event:
+        return {
+            'statusCode': 400,
+            'body': {
+                'error': 'Invalid request. Headers not found in the request.'
             }
-    return None
+        }
 
-def convert_to_pdf(file_path):
-    try:
-        pdf_path = file_path.rsplit('.', 1)[0] + '.pdf'
-        convert(file_path, pdf_path)
-        return pdf_path
-    except Exception as e:
-        print(e)
-        return None
+    # Get the content type from the headers
+    headers = event['headers']
+    if 'Content-Type' not in headers:
+        return {
+            'statusCode': 400,
+            'body': {
+                'error': 'Invalid request. Content-Type header not found.'
+            }
+        }
+    content_type = headers['Content-Type']
 
-def upload_to_s3(file_path, filename):
-    s3 = boto3.client('s3')
-    s3.upload_file(file_path, BUCKET_NAME, filename)
+    # Check if the content type is multipart/form-data
+    if 'multipart/form-data' not in content_type:
+        return {
+            'statusCode': 400,
+            'body': {
+                'error': 'Invalid request. Content-Type must be multipart/form-data.'
+            }
+        }
+
+    # Get the file from the event
+    file_data = None
+    if 'body' in event:
+        body = event['body']
+        for part in body:
+            if 'content-type' in part and 'filename' in part:
+                if part['content-type'] == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                    file_data = part['content']
+                    break
+
+    if file_data is None:
+        return {
+            'statusCode': 400,
+            'body': {
+                'error': 'Invalid request. File not found in the request body.'
+            }
+        }
+
+    # Convert the file_data to bytes
+    file_bytes = file_data.encode('utf-8')
+
+    # Create a temporary file to store the uploaded file
+    with open('/tmp/uploaded_file.docx', 'wb') as f:
+        f.write(file_bytes)
+
+    # Check if the file is a .docx file
+    if not file_data.lower().endswith('.docx'):
+        return {
+            'statusCode': 400,
+            'body': {
+                'error': 'Invalid file format. File is not a .docx file.'
+            }
+        }
+
+    # Convert the .docx file to .pdf
+    pdf_bytes = convert('/tmp/uploaded_file.docx')
+
+    # Extract the file name without the extension
+    file_name = os.path.splitext(os.path.basename('/tmp/uploaded_file.docx'))[0]
+
+    # Specify the key/path for the output PDF file
+    pdf_key = f'{file_name}.pdf'
+
+    # Save the PDF file to an S3 bucket
+    s3 = boto3.resource('s3')
+    bucket_name = 'pdf-files-storage'  # Replace with your S3 bucket name
+    s3.Bucket(bucket_name).put_object(Key=pdf_key, Body=pdf_bytes)
+
+    return {
+        'statusCode': 200,
+        'body': {
+            'message': 'Word document converted and PDF stored successfully!'
+        }
+    }
